@@ -1,0 +1,355 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: 
+  -   AWS::Serverless-2016-10-31
+Description: >
+  This sample shows how to build a reinforcement learning model which optimizes a piece of equipment.
+
+Parameters:
+  StateColumns:
+    Description: "Glue table column names which represent the states in the environment"
+    Type: String
+    Default: "cart_position cart_velocity pole_angle pole_angular_velocity goal_position"
+  
+  ActionColumns:
+    Description: "Glue table column names which represent the actions in the environment"
+    Type: String
+    Default: "external_force"
+  
+  RewardColumn:
+    Description: "Glue table column names which represent the actions in the environment"
+    Type: String
+    Default: "reward"
+
+Resources:
+  
+  #################################
+  ########## Nested Stacks ########
+  #################################
+  MeasurementsFirehose:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: nested_stacks/firehose_to_s3/template.yaml
+      Parameters:
+        OutputBucketArn: !GetAtt DataBucket.Arn
+        MetadataExtractionQueryString: >
+          {
+          device_id:  .device_id,
+          episode_id: .episode_id,
+          year:       .epoch_time| strftime("%Y"),
+          month:      .epoch_time| strftime("%m"),
+          day:        .epoch_time| strftime("%d"),
+          hour:       .epoch_time| strftime("%H")
+          }
+        FirehoseOutputS3Prefix: !Join 
+          - ""
+          - - type=measurement/
+            - device=!{partitionKeyFromQuery:device_id}/
+            - year=!{partitionKeyFromQuery:year}/
+            - month=!{partitionKeyFromQuery:month}/
+            - day=!{partitionKeyFromQuery:day}/
+            - hour=!{partitionKeyFromQuery:hour}/
+  
+  SagemakerDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+  #################################
+  ########## Security #############
+  #################################
+  
+  GlueRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - glue.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+      Policies: 
+          - PolicyName: FirehoseWriteToS3
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Sid: AllowS3Crud
+                  Effect: Allow
+                  Action:
+                    - "s3:AbortMultipartUpload"
+                    - "s3:GetBucketLocation"
+                    - "s3:GetObject"
+                    - "s3:ListBucket"
+                    - "s3:ListBucketMultipartUploads"
+                    - "s3:PutObject"
+                  Resource: 
+                    - !GetAtt AssetsBucket.Arn
+                    - !Sub "${AssetsBucket.Arn}/*"
+                    - !GetAtt DataBucket.Arn
+                    - !Sub "${DataBucket.Arn}/*"
+  
+  SagemakerTrainDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+  
+  #################################
+  ########## Storage ##############
+  #################################
+  
+  DataBucket:
+    Type: AWS::S3::Bucket
+  
+  AssetsBucket:
+    Type: AWS::S3::Bucket
+  
+  GlueDb:
+    Type: AWS::Glue::Database
+    Properties:
+      DatabaseInput:
+        Name: !Sub "${AWS::StackName}_historian_db"
+      CatalogId: !Ref AWS::AccountId
+  
+  GlueMeasurementsTable:
+    Type: AWS::Glue::Table
+    Properties:
+      DatabaseName: !Ref GlueDb
+      CatalogId: !Ref AWS::AccountId
+      TableInput:
+        Name: measurements_table
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          EXTERNAL: True
+        StorageDescriptor:
+          Columns:
+            - Name: cart_position
+              Type: double
+            - Name: cart_velocity
+              Type: double
+            - Name: pole_angle
+              Type: double
+            - Name: pole_angular_velocity
+              Type: double
+            - Name: goal_position
+              Type: double
+            - Name: external_force
+              Type: double
+            - Name: reward
+              Type: double
+            - Name: done
+              Type: boolean
+            - Name: info
+              Type: string
+            - Name: episode_id
+              Type: string
+            - Name: device_id
+              Type: string
+            - Name: epoch_time
+              Type: double
+            - Name: time_step
+              Type: int
+            - Name: action_source
+              Type: string
+          Location: !Sub "s3://${DataBucket}/type=measurement/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+            Parameters:
+              paths: >
+                cart_position,
+                cart_velocity,
+                pole_angle,
+                pole_angular_velocity,
+                goal_position,
+                external_force,
+                reward,done,info,episode_id,device_id,epoch_time, time_step, action_source
+  
+  ######################################
+  ###### Compute Resources #############
+  ######################################
+  
+  SimulationLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: SimulationLayer
+      Description: This layer has a custom gym environment to run continuous cartpole
+      ContentUri: functions/simulation_layer
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.9
+  
+  RunPhysicsSimulationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/run_physics_simulation/
+      Handler: run_physics_simulation_app.lambda_handler
+      Runtime: python3.9
+      Layers:
+        - !Ref SimulationLayer
+      Environment:
+        Variables:
+          DELIVERY_STREAM_NAME: !GetAtt MeasurementsFirehose.Outputs.DeliveryStreamName
+      Policies:
+        - Statement:
+          - Sid: AllowFirehoseWrite
+            Effect: Allow
+            Action: 
+              - firehose:PutRecord
+              - firehose:PutRecordBatch
+            Resource: !GetAtt MeasurementsFirehose.Outputs.DeliveryStreamArn
+          - Sid: AllowSagemakerInvokeEndpoint
+            Effect: Allow
+            Action:
+              - sagemaker:InvokeEndpoint
+            Resource: "*"
+      Timeout: 120
+  
+  JsonToRllibFormatGlueJob:
+    Type: AWS::Glue::Job
+    Properties: 
+      Name: !Sub "${AWS::StackName}-JsonToRllibFormatJob"
+      Command:
+        Name: pythonshell # glueray
+        PythonVersion: 3.9
+        ScriptLocation: !Sub "s3://${AssetsBucket}/glue_scripts/glue_to_rllib_json.py"
+      Role: !GetAtt GlueRole.Arn
+      DefaultArguments:
+        --states: !Ref StateColumns #"cart_position cart_velocity pole_angle pole_angular_velocity goal_position"
+        --actions: !Ref ActionColumns #external_force
+        --reward_col: !Ref RewardColumn #reward
+        --glue_db: !Ref GlueDb
+        --glue_table: !Ref GlueMeasurementsTable
+        --output_bucket: !Ref DataBucket
+        --records_per_batch: 10000
+        --job-language: python
+        --additional-python-modules: "ray[rllib], gym, dm_tree, scikit-image, tabulate, awswrangler, tqdm"
+        library-set: analytics
+      GlueVersion: 1.0
+      # WorkerType: Z.2X
+      # NumberOfWorkers: 1
+      ExecutionProperty:
+        MaxConcurrentRuns: 3
+      
+  # HyperparameterTuningOfflineTrainingJobLauncherFunction:
+  TuningJobLauncherFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+    Properties:
+      CodeUri: functions/offline_training_job_launcher/
+      Handler: hyperparameter_tuning_launcher_app.lambda_handler
+      Runtime: python3.9
+      Environment:
+        Variables:
+          TRAIN_INSTANCE_TYPE: "ml.m5.2xlarge"
+          SAGEMAKER_TRAINING_BUCKET: !Ref AssetsBucket
+          SAGEMAKER_TRAINING_ROLE: !Ref SagemakerDeployRole
+          DATA_LOCATION: !Sub "s3://${DataBucket}/ray_offline_data/"
+          MAX_TUNING_JOBS: 16
+          TRAINING_ITERATIONS: 1000
+          # TRAINING_IMAGE_URI: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${TrainingImageName}:latest"
+      Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+        - Statement:
+          - Sid: SagemakerFullAccess
+            Effect: Allow
+            Action:
+              - sagemaker:*
+            Resource: '*'
+        - S3CrudPolicy:
+            BucketName: !Ref AssetsBucket
+        - S3ReadPolicy:
+            BucketName: !Ref DataBucket
+        - Statement:
+          - Sid: GetPassSagemakerTrainingRole
+            Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:PassRole
+            Resource: !GetAtt SagemakerDeployRole.Arn
+      Timeout: 30
+      MemorySize: 256
+  
+  ModelDeployerFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html
+    Properties:
+      CodeUri: functions/model_deployer/
+      Handler: model_deployer_app.lambda_handler
+      Runtime: python3.9
+      Environment:
+        Variables:
+          SM_MODEL_DEPLOY_ROLE : !Ref SagemakerTrainDeployRole
+          MODEL_BUCKET: !Ref AssetsBucket
+      Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+        - S3CrudPolicy:
+            BucketName: !Ref AssetsBucket
+        # - S3ReadPolicy:
+        #     BucketName: !Ref AssetsBucket
+        - Statement:
+          - Sid: SagemakerFullAccess
+            Effect: Allow
+            Action:
+              - sagemaker:*
+            Resource: '*'
+        - Statement:
+          - Sid: GetPassSagemakerDeployRole
+            Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:PassRole
+            Resource: !GetAtt SagemakerTrainDeployRole.Arn
+            Resource: '*'
+      Timeout: 120
+      MemorySize: 256
+  ####################################################
+  ################ Custom Resources ##################
+  ####################################################
+  
+  UploadS3CustomResource:
+    Type: Custom::S3Uploader
+    Properties:
+      ServiceToken: !GetAtt S3UploadHandler.Arn
+      BucketName: !Ref AssetsBucket
+  
+  S3UploadHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/upload_to_s3/
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Timeout: 180
+      MemorySize: 2048
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref AssetsBucket
+        - Statement:
+          - Sid: AllowListBuckets # This is required for s3fs
+            Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+            Resource: '*'
+      Environment:
+        Variables:
+          BUCKET: !Ref AssetsBucket

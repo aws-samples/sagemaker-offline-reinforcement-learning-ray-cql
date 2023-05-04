@@ -1,0 +1,7 @@
+{
+  "DescribeTrainingJob": {
+    "ModelArtifacts": {
+      "S3ModelArtifacts": "s3://ol-rl-v0-0-0-assetsbucket-ngagfxwcupoc/training/offline-rl-2000-iter-230414-1622-010-ef16bf2e/output/model.tar.gz"
+    }
+  }
+}

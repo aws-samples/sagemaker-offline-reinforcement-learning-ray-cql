@@ -1,0 +1,6 @@
+{
+    "Parameters": {
+        "MODEL_BUCKET": "ol-rl-v0-0-0-assetsbucket-ngagfxwcupoc",
+        "SM_MODEL_DEPLOY_ROLE": "ol-rl-v0-0-0-SagemakerTrainDeployRole-1HZP8GAWO81WB"
+    }
+}

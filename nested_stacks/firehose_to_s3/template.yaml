@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: 
+  -   AWS::Serverless-2016-10-31
+Description: >
+  This sample exposes a kinesis firehose and allows it to put items in an s3 bucket
+
+
+Parameters:
+  OutputBucketArn:
+    Description: "Arn of the bucket to write to"
+    Type: String
+    Default: "arn:aws:s3:::bucket-name-here"
+  
+  MetadataExtractionQueryString:
+    Type: String
+    Default: "{customer_id:.customer_id,  year:.event_timestamp| strftime(\"%Y\")}"
+  
+  FirehoseOutputS3Prefix:
+    Type: String
+    Default: "!{partitionKeyFromQuery:customer_id}"
+  
+Resources:
+
+  #################################
+  ########## Security #############
+  #################################
+  # https://docs.aws.amazon.com/firehose/latest/dev/controlling-access.html#using-iam-s3
+  WriteToS3FromFirehoseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action: sts:AssumeRole
+            Principal:
+              Service:
+                - firehose.amazonaws.com
+      Policies: 
+          - PolicyName: FirehoseWriteToS3
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Sid: AllowS3Write
+                  Effect: Allow
+                  Action:
+                    - "s3:AbortMultipartUpload"
+                    - "s3:GetBucketLocation"
+                    - "s3:GetObject"
+                    - "s3:ListBucket"
+                    - "s3:ListBucketMultipartUploads"
+                    - "s3:PutObject"
+                  Resource: 
+                    - !Ref OutputBucketArn
+                    - !Sub "${OutputBucketArn}/*"
+                
+                - Sid: AllowKinesisRead
+                  Effect: Allow
+                  Action:
+                    - "kinesis:DescribeStream"
+                    - "kinesis:GetShardIterator"
+                    - "kinesis:GetRecords"
+                    - "kinesis:ListShards"
+                  # Resource: !GetAtt MeasurementDeliveryStream.Arn
+                  Resource: !Sub "arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${AWS::StackName}-measurements"
+                
+                - Sid: AllowPutLog
+                  Effect: Allow
+                  Action:
+                    - logs:PutLogEvents
+                  Resource: "*"
+  
+  
+  #################################
+  ########## Compute ##############
+  #################################
+  
+  #https://docs.aws.amazon.com/firehose/latest/dev/dynamic-partitioning.html?icmpid=docs_console_unmapped
+  MeasurementDeliveryStream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: !Sub "${AWS::StackName}-measurements"
+      ExtendedS3DestinationConfiguration:
+        BucketARN: !Ref OutputBucketArn
+        Prefix: !Ref FirehoseOutputS3Prefix
+        ErrorOutputPrefix: error
+        RoleARN: !GetAtt WriteToS3FromFirehoseRole.Arn
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Sub "aws/kinesisfirehose/${AWS::StackName}"
+          LogStreamName: DestinationDelivery
+        DynamicPartitioningConfiguration:
+          Enabled: true
+        ProcessingConfiguration:
+          Enabled: true
+          Processors:
+            - Type: MetadataExtraction
+              Parameters:
+                - ParameterName: MetadataExtractionQuery
+                  ParameterValue: !Ref MetadataExtractionQueryString
+                - ParameterName: JsonParsingEngine
+                  ParameterValue: JQ-1.6
+            - Type: AppendDelimiterToRecord 
+              # Parameters:
+              #   - ParameterName: Delimiter 
+              #     ParameterValue: \n
+        BufferingHints:
+          IntervalInSeconds: 60
+
+Outputs:
+  DeliveryStreamName:
+    Value: !Ref MeasurementDeliveryStream
+  
+  DeliveryStreamArn:
+    Value: !GetAtt MeasurementDeliveryStream.Arn
