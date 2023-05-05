@@ -42,7 +42,7 @@ def lambda_handler(event, context):
     MODEL_DATA = event.get('DescribeTrainingJob').get('ModelArtifacts').get('S3ModelArtifacts')
     
     # uniqueId = "".join(random.choices(string.ascii_lowercase, k=5))
-    uniqueId ="-".join(MODEL_DATA.split("/")[-3].split("-")[-3:])
+    uniqueId ="-".join(MODEL_DATA.split("/")[-3].split("-")[-4:-1])
     
     MODEL_DEPLOY_ROLE = os.environ['SM_MODEL_DEPLOY_ROLE']
     ENDPOINT_NAME = f'{uniqueId}'
@@ -76,7 +76,7 @@ def lambda_handler(event, context):
     
     predictor = model.deploy(
         serverless_inference_config=sagemaker.serverless.serverless_inference_config.ServerlessInferenceConfig(
-            memory_size_in_mb=2048, max_concurrency=5),
+            memory_size_in_mb=2048, max_concurrency=200),
         serializer=JSONSerializer(),
         deserializer=JSONDeserializer(),
         wait = False,

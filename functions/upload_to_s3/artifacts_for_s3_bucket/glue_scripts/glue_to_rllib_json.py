@@ -131,7 +131,8 @@ if __name__ == '__main__':
                                'glue_db',
                                'glue_table',
                                'output_bucket',
-                               'records_per_batch'
+                               'records_per_batch',
+                               'athena_workgroup'
                                ])
     
     print('Input Args')
@@ -144,6 +145,7 @@ if __name__ == '__main__':
     GLUE_TABLE = args['glue_table']
     OUTPUT_BUCKET = args['output_bucket']
     NUM_RECORDS_PER_BATCH = int(args['records_per_batch'])
+    ATHENA_WORKGROUP = args['athena_workgroup']
     
     # For testing purposes
     # STATES = ['cart_position','cart_velocity','pole_angle','pole_angular_velocity']
@@ -170,7 +172,8 @@ if __name__ == '__main__':
     """
     unique_episodes_db = wr.athena.read_sql_query(
         sql=unique_episodes_query,
-        database = GLUE_DB
+        database = GLUE_DB,
+        workgroup = ATHENA_WORKGROUP
     )
     
     print(f'About to iterate through {unique_episodes_db.shape[0]} episodes')
@@ -190,7 +193,8 @@ if __name__ == '__main__':
             device_query_db_iter = wr.athena.read_sql_query(
                 sql=device_query,
                 database = GLUE_DB,
-                chunksize = NUM_RECORDS_PER_BATCH
+                chunksize = NUM_RECORDS_PER_BATCH,
+                workgroup = ATHENA_WORKGROUP
             )
         except:
             print('Query failed to run')

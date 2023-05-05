@@ -1,7 +1,7 @@
-TUNING_JOB_NAME = "offline-rl-2000-iter-230420-1859"
-# TUNING_JOB_NAME = "offline-rl-2000-iter-230427-2138"
-# COLUMNS_TO_PLOT = ['critic_loss', 'evaluation_critic_loss',  'td_mse', 'evaluation_td_mse', 'cql_loss', 'evaluation_cql_loss', 'actor_loss','evaluation_actor_loss','training_iteration','iterations_since_restore', 'timesteps_total', 'mean_q']
-COLUMNS_TO_PLOT = ['critic_loss', 'evaluation_avg_critic_loss',  'td_mse', 'evaluation_td_mse', 'actor_loss','evaluation_avg_actor_loss','training_iteration','iterations_since_restore', 'timesteps_total', 'mean_q','cql_loss']
+TUNING_JOB_NAME = "offline-rl-1000-iter-230505-1519"
+# TUNING_JOB_NAME = "offline-rl-1000-iter-230504-2327"
+COLUMNS_TO_PLOT = ['critic_loss', 'evaluation_critic_loss',  'td_mse', 'evaluation_td_mse', 'cql_loss', 'evaluation_cql_loss', 'actor_loss','evaluation_actor_loss','training_iteration','iterations_since_restore', 'timesteps_total', 'mean_q']
+# COLUMNS_TO_PLOT = ['critic_loss', 'evaluation_avg_critic_loss',  'td_mse', 'evaluation_td_mse', 'actor_loss','evaluation_avg_actor_loss','training_iteration','iterations_since_restore', 'timesteps_total', 'mean_q','cql_loss']
 
 NUM_COLUMNS = 2
 

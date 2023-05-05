@@ -2,23 +2,8 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: 
   -   AWS::Serverless-2016-10-31
 Description: >
-  This sample shows how to build a reinforcement learning model which optimizes a piece of equipment.
-
-Parameters:
-  StateColumns:
-    Description: "Glue table column names which represent the states in the environment"
-    Type: String
-    Default: "cart_position cart_velocity pole_angle pole_angular_velocity goal_position"
+   This sample shows how to build a reinforcement learning model which optimizes a piece of equipment.
   
-  ActionColumns:
-    Description: "Glue table column names which represent the actions in the environment"
-    Type: String
-    Default: "external_force"
-  
-  RewardColumn:
-    Description: "Glue table column names which represent the actions in the environment"
-    Type: String
-    Default: "reward"
 
 Resources:
   
@@ -49,14 +34,19 @@ Resources:
             - day=!{partitionKeyFromQuery:day}/
             - hour=!{partitionKeyFromQuery:hour}/
   
+  
+  #################################
+  ########## Security #############
+  #################################
+  
+  
   SagemakerDeployRole:
     Type: AWS::IAM::Role
     Properties:
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
-        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      # ManagedPolicyArns:
+        # - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        # - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        # - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -64,10 +54,32 @@ Resources:
             Principal:
               Service: sagemaker.amazonaws.com
             Action: sts:AssumeRole
-  #################################
-  ########## Security #############
-  #################################
+      Policies: 
+          - PolicyName: ServeModel
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Sid: AllowPullImage
+                  Effect: Allow
+                  Action:
+                    - ecr:BatchGetImage
+                  Resource: "*"
   
+  SagemakerTrainRole:
+    Type: AWS::IAM::Role
+    Properties:
+      # ManagedPolicyArns:
+        # - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        # - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
+
+           
   GlueRole:
     Type: AWS::IAM::Role
     Properties:
@@ -79,43 +91,71 @@ Resources:
             Principal:
               Service:
                 - glue.amazonaws.com
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
-        - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
+      # ManagedPolicyArns:
+      #   - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      #   - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
       Policies: 
-          - PolicyName: FirehoseWriteToS3
+          - PolicyName: AthenaQueryPolicy
             PolicyDocument:
               Version: '2012-10-17'
               Statement:
-                - Sid: AllowS3Crud
+                - Sid: AllowAthenatQuery
                   Effect: Allow
                   Action:
-                    - "s3:AbortMultipartUpload"
-                    - "s3:GetBucketLocation"
-                    - "s3:GetObject"
-                    - "s3:ListBucket"
-                    - "s3:ListBucketMultipartUploads"
-                    - "s3:PutObject"
-                  Resource: 
-                    - !GetAtt AssetsBucket.Arn
-                    - !Sub "${AssetsBucket.Arn}/*"
-                    - !GetAtt DataBucket.Arn
-                    - !Sub "${DataBucket.Arn}/*"
+                    - athena:StartQueryExecution
+                    - athena:GetQueryResults
+                    - athena:GetWorkGroup
+                    - athena:StopQueryExecution
+                    - athena:GetQueryExecution
+                    - glue:CreateTable
+                    - glue:GetTable
+                    - glue:GetPartitions
+                    - glue:DeleteTable
+                    - s3:ListAllMyBuckets
+                  Resource: "*"
   
-  SagemakerTrainDeployRole:
-    Type: AWS::IAM::Role
+  CloudWatchLogsAndS3Policy:
+    Type: AWS::IAM::Policy
     Properties:
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
-        - arn:aws:iam::aws:policy/AmazonS3FullAccess
-        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+      Roles:
+        - !Ref SagemakerTrainRole
+        - !Ref SagemakerDeployRole
+        - !Ref GlueRole
+      PolicyName: CloudWatchLogsAndS3
+      PolicyDocument:
+        Version: '2012-10-17'
         Statement:
-          - Effect: Allow
-            Principal:
-              Service: sagemaker.amazonaws.com
-            Action: sts:AssumeRole
+          - Sid: AllowS3Crud
+            Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+              - s3:GetBucketLocation
+              - s3:GetBucketAcl
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:ListMultipartUploadParts
+              - s3:AbortMultipartUpload
+              - s3:PutObject
+            Resource: 
+              - !GetAtt AssetsBucket.Arn
+              - !Sub "${AssetsBucket.Arn}/*"
+              - !GetAtt DataBucket.Arn
+              - !Sub "${DataBucket.Arn}/*"
+          - Sid: WriteCWLogsAndMetrics
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:PutRetentionPolicy
+              - logs:PutLogEvents
+              - logs:GetLogEvents
+              - cloudwatch:PutMetricData
+            Resource: "*"
+      
+  
   
   #################################
   ########## Storage ##############
@@ -192,7 +232,14 @@ Resources:
   ######################################
   ###### Compute Resources #############
   ######################################
-  
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Sub "${AWS::StackName}-workgroup"
+      WorkGroupConfiguration: 
+        ResultConfiguration: 
+          OutputLocation: !Sub "s3://${DataBucket}/athena_results/"
+      
   SimulationLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
@@ -224,8 +271,7 @@ Resources:
             Resource: !GetAtt MeasurementsFirehose.Outputs.DeliveryStreamArn
           - Sid: AllowSagemakerInvokeEndpoint
             Effect: Allow
-            Action:
-              - sagemaker:InvokeEndpoint
+            Action: sagemaker:InvokeEndpoint
             Resource: "*"
       Timeout: 120
   
@@ -239,15 +285,16 @@ Resources:
         ScriptLocation: !Sub "s3://${AssetsBucket}/glue_scripts/glue_to_rllib_json.py"
       Role: !GetAtt GlueRole.Arn
       DefaultArguments:
-        --states: !Ref StateColumns #"cart_position cart_velocity pole_angle pole_angular_velocity goal_position"
-        --actions: !Ref ActionColumns #external_force
-        --reward_col: !Ref RewardColumn #reward
+        --states: "cart_position cart_velocity pole_angle pole_angular_velocity goal_position"
+        --actions: external_force
+        --reward_col: reward
         --glue_db: !Ref GlueDb
         --glue_table: !Ref GlueMeasurementsTable
         --output_bucket: !Ref DataBucket
         --records_per_batch: 10000
         --job-language: python
         --additional-python-modules: "ray[rllib], gym, dm_tree, scikit-image, tabulate, awswrangler, tqdm"
+        --athena_workgroup: !Ref AthenaWorkGroup
         library-set: analytics
       GlueVersion: 1.0
       # WorkerType: Z.2X
@@ -273,11 +320,12 @@ Resources:
           # TRAINING_IMAGE_URI: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${TrainingImageName}:latest"
       Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
         - Statement:
-          - Sid: SagemakerFullAccess
+          - Sid: SageMakerTuningJob
             Effect: Allow
             Action:
-              - sagemaker:*
-            Resource: '*'
+              - sagemaker:CreateHyperParameterTuningJob
+              - sagemaker:AddTags
+            Resource: "*"
         - S3CrudPolicy:
             BucketName: !Ref AssetsBucket
         - S3ReadPolicy:
@@ -300,34 +348,35 @@ Resources:
       Runtime: python3.9
       Environment:
         Variables:
-          SM_MODEL_DEPLOY_ROLE : !Ref SagemakerTrainDeployRole
+          SM_MODEL_DEPLOY_ROLE : !Ref SagemakerDeployRole
           MODEL_BUCKET: !Ref AssetsBucket
       Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
         - S3CrudPolicy:
             BucketName: !Ref AssetsBucket
-        # - S3ReadPolicy:
-        #     BucketName: !Ref AssetsBucket
         - Statement:
-          - Sid: SagemakerFullAccess
+          - Sid: SagemakerCreateDeployModel
             Effect: Allow
             Action:
-              - sagemaker:*
-            Resource: '*'
+              - sagemaker:CreateEndpoint
+              - sagemaker:CreateEndpointConfig
+              - sagemaker:CreateModel
+              - sagemaker:AddTags
+            Resource: "*"
         - Statement:
           - Sid: GetPassSagemakerDeployRole
             Effect: Allow
             Action:
               - iam:GetRole
               - iam:PassRole
-            Resource: !GetAtt SagemakerTrainDeployRole.Arn
-            Resource: '*'
+            Resource: !GetAtt SagemakerDeployRole.Arn
+            # Resource: '*'
       Timeout: 120
       MemorySize: 256
   ####################################################
   ################ Custom Resources ##################
   ####################################################
   
-  UploadS3CustomResource:
+  UploadS3CustomResource1:
     Type: Custom::S3Uploader
     Properties:
       ServiceToken: !GetAtt S3UploadHandler.Arn
@@ -344,12 +393,12 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref AssetsBucket
-        - Statement:
-          - Sid: AllowListBuckets # This is required for s3fs
-            Effect: Allow
-            Action:
-              - s3:ListAllMyBuckets
-            Resource: '*'
+        # - Statement:
+        #   - Sid: AllowListBuckets # This is required for s3fs
+        #     Effect: Allow
+        #     Action:
+        #       - s3:ListAllMyBuckets
+        #     Resource: '*'
       Environment:
         Variables:
           BUCKET: !Ref AssetsBucket

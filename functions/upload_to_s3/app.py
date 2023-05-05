@@ -49,9 +49,6 @@ def lambda_handler(event, context):
               print(f'key: {key}')
               
               s3_client.upload_file(os.path.join(root,file), os.environ['BUCKET'], key)
-              
-      
-      # s3_file_system.put('./', os.environ['BUCKET'], recursive=True) 
       
       
   except Exception as err:

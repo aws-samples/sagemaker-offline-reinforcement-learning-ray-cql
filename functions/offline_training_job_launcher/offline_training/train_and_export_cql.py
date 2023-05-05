@@ -246,99 +246,35 @@ if __name__ == "__main__":
     print(f'Training on {len(train_data_file_list)} files, validating on {len(validation_data_file_list)}, out of a total {len(input_data_file_list)} files from path: {TRAINING_DATA_DIR}')
     print('First 5 training files')
     pprint(train_data_file_list[:5])
-    
-    # # load information from previous trials to restore.
-    # # These are default values to be replaced if there is a checkpoint to load.
-    # restored_policy_weights = None
-    # previous_iterations = 1
-    # try:
-    #     print(f'Attempting to load previous checkpoint. CHECKPOINT_DIR ({CHECKPOINT_DIR}) content:')
-    #     list_files(CHECKPOINT_DIR)
-    #     #First get model weights. This way of finding the experiment_dirs guarentees that there is a checkpoint in the dir.
-    #     experiment_dirs = [os.path.join(*exp_dir.split("/")[:-1]) for exp_dir in glob(f"{CHECKPOINT_DIR}/CQL/*/checkpoint*", recursive = True)]
-    #     input_model_path = os.path.join(
-    #                 os.environ['SM_INPUT_DIR'],
-    #                 'data',
-    #                 'model'
-    #             )
-    #     if len(experiment_dirs) > 0:
-    #         # If there is a previous experiment in the intermediate directory, load the weights
-    #         print('Extracting previous checkpoint from experiment directory')
-    #         pprint(experiment_dirs)
-    #         experiment_dir_dttms = [x[-19:] for x in experiment_dirs]
-    #         index_of_last_experiment = experiment_dir_dttms.index(max(experiment_dir_dttms))
-    #         experiment_dir = experiment_dirs[index_of_last_experiment]
-    #         print(f'Best Experiment Dir: {experiment_dir}')
-    #         last_checkpoint_dir = glob(f"/{experiment_dir}/*/", recursive = True)[-1]
-    #     elif os.path.exists(input_model_path):
-    #         # If an input model was supplied, load it as the inital model
-    #         print(f'Extracting files in input_model_path: {input_model_path}')
-    #         with tarfile.open(os.path.join(input_model_path,'model.tar.gz')) as file:
-    #             # extract files
-    #             file.extractall(input_model_path)
-    #         print('Finished extracting model files')
-    #         list_files(input_model_path)
-    #         last_checkpoint_dir = os.path.join(input_model_path,'checkpoint')
-    #     else:
-    #         print('Did not find checkpoints in either the checkpoint dir or the input_model_path')
-        
-    #     print(f'Last checkpoint dir: {last_checkpoint_dir}')
-        
-    #     last_checkpoint_policy_dir = os.path.join(last_checkpoint_dir,'policies','default_policy')
-    #     restored_policy = Policy.from_checkpoint( last_checkpoint_policy_dir)
-    #     restored_policy_weights = restored_policy.get_weights()
-        
-    #     print('Successfully restored policy weights')
-        
-    #     # Now get the training iteration
-    #     previous_iterations = 0
-    #     experiment_state_paths = glob(f"{CHECKPOINT_DIR}/CQL/experiment_state*", recursive = True)
-    #     print('Experiment State Paths:')
-    #     print(experiment_state_paths)
-    #     for experiment_state_path in experiment_state_paths:
-    #         print(f'Opening experiment: {experiment_state_path}')
-    #         with open(experiment_state_path) as jsonfile:
-    #             experiment_state = json.load(jsonfile)
-    #         last_training_iteration = json.loads(experiment_state.get('checkpoints')[0]).get('_last_result').get('training_iteration')
-    #         previous_iterations += last_training_iteration
-    #     print(f'Number of previous iterations: {previous_iterations}')
-        
-    #     print('Successfully loaded model weights and found previous iterations.')
-    #     # print(restored_policy_weights)
-    # except Exception as e:
-    #     print(f'Unable to load previous checkpoint due to {e}')
-    #     print(traceback.format_exc())
 
     
     
     class MyCallback(DefaultCallbacks):
+        def __init__(self):
+            self.batch_number = 0
+            super().__init__()
+            
+        def on_algorithm_init(self, algorithm, **kwargs):
+            """ Clear the tower stats after initiating the algorithm. """
+            policy = algorithm.get_policy()
+            for tower in policy.model_gpu_towers:
+                print('Initial tower_stats')
+                print(json.dumps({key: policy.model_gpu_towers[0].tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
+                # tower.tower_stats={}
         
-        # def on_algorithm_init(self, algorithm, **kwargs):
-            
-        #     # Load algorithm weights from previous training
-        #     try:
-        #         #This is how you resorte weights
-        #         algorithm.set_weights({"default_policy": restored_policy_weights})
-        #         print('Successfully set model weights')
-        #     except Exception as e:
-        #         print(f'Unable to resore algorithm weights due to {e}')
-        #         print(traceback.format_exc())
-        #         print('End of handled error related to loading model weights.')
-            
-        #     #Set the initial q_net bias to be the lowest q value in the behavioral data set
-        #     policy = algorithm.get_policy()
-            
-        #     #Set both the q_net and twin_q_net for compatability
-        #     policy.model.q_net._logits._model[0].bias = torch.nn.Parameter(torch.tensor([INITIAL_Q_VALUE]))
-            
-        #     if policy.model.twin_q_net:
-        #         policy.model.twin_q_net._logits._model[0].bias = torch.nn.Parameter(torch.tensor([INITIAL_Q_VALUE]))
+        def on_learn_on_batch(self, policy, train_batch, result, **kwargs):
+            """Print the first couple batches when training"""
+            self.batch_number += 1
+            if self.batch_number < 10:
+                print(f'Batch number {self.batch_number}')
+                print(json.dumps(train_batch,default = str).replace(r"\n", ""))
         
         def on_train_result(self, algorithm, result, **kwargs):
             "Calculate objective metric. Here it's a sum of actor, critic, and cql losses. Expose them and all results at the end of each training cycle."
             policy = algorithm.get_policy()
             for tower in policy.model_gpu_towers:
-                print('on_train_result Tower Keys: ',', '.join(tower.tower_stats.keys()))
+                print('tower_stats')
+                print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
                 
             reloaded_results = json.loads(json.dumps(result, default = str)) # This is required so that jq can read np values w/o custom SerDe
             
@@ -382,7 +318,7 @@ if __name__ == "__main__":
         .training(
             # clip_actions=False,
             # normalize_actions = True,
-            twin_q=True,
+            # twin_q=True,
             
             # q_model_config = {
             #     "fcnet_hiddens": [256]*NUMBER_LAYERS,
@@ -394,14 +330,17 @@ if __name__ == "__main__":
             #     "fcnet_activation": "relu",
             # },
             
-            train_batch_size = 2**7,
+            train_batch_size = 2**5,
             optimization_config = {
                 "actor_learning_rate": ACTOR_LEARNING_RATE,
                 "critic_learning_rate": CRITIC_LEARNING_RATE,
                 "entropy_learning_rate": 3e-4,
             },
             # num_steps_sampled_before_learning_starts=2**8,
-            bc_iters = 0#2**10
+            # bc_iters = 0,#2**10
+            
+            # grad_clip = 0.95,
+            # grad_clip_by = 'global_norm',
         )
         .evaluation(
             evaluation_interval=1,
@@ -429,6 +368,7 @@ if __name__ == "__main__":
         config=config.to_dict(),
         
     )
+    
     trainable = trainer.as_trainable()
     
     stop = [
@@ -454,7 +394,7 @@ if __name__ == "__main__":
             verbose=2,
             # sync_config=sync_config,
             checkpoint_config=air.CheckpointConfig(
-                checkpoint_frequency=2,
+                checkpoint_frequency=10,
                 checkpoint_at_end=True,
                 # checkpoint_score_attribute="info/learner/default_policy/learner_stats/critic_loss",
                 # checkpoint_score_order="min",
@@ -470,6 +410,7 @@ if __name__ == "__main__":
             os.path.join(CHECKPOINT_DIR,ALGORITHM),
             trainable=trainable,
             resume_errored=True,
+            # restart_errored=True,
         )
         print('Successfully restored tuner job')
     except Exception as e:
