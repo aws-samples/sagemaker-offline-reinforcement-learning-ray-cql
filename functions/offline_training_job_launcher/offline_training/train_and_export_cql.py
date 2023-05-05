@@ -266,15 +266,17 @@ if __name__ == "__main__":
             """Print the first couple batches when training"""
             self.batch_number += 1
             if self.batch_number < 10:
-                print(f'Batch number {self.batch_number}')
+                for tower in policy.model_gpu_towers:
+                    print('tower_stats')
+                    print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
                 print(json.dumps(train_batch,default = str).replace(r"\n", ""))
         
         def on_train_result(self, algorithm, result, **kwargs):
             "Calculate objective metric. Here it's a sum of actor, critic, and cql losses. Expose them and all results at the end of each training cycle."
-            policy = algorithm.get_policy()
-            for tower in policy.model_gpu_towers:
-                print('tower_stats')
-                print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
+            # policy = algorithm.get_policy()
+            # for tower in policy.model_gpu_towers:
+            #     print('tower_stats')
+            #     print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
                 
             reloaded_results = json.loads(json.dumps(result, default = str)) # This is required so that jq can read np values w/o custom SerDe
             

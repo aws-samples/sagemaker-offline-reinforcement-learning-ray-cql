@@ -1,13 +1,13 @@
 set -e -o pipefail
 source sam_functions.sh
 
-ResourceId=RunPhysicsSimulationFunction
-event='{"random_action_fraction": 0.0, "inference_endpoint_name": "230504-2327-004-2023-05-05-15-38-40-756"}'
+# ResourceId=RunPhysicsSimulationFunction
+# event='{"random_action_fraction": 0.0, "inference_endpoint_name": "230504-2327-004-2023-05-05-15-38-40-756"}'
 # event='{"random_action_fraction": 0.5}'
 
 # ResourceId=S3UploadHandler
 
-# ResourceId=TuningJobLauncherFunction
+ResourceId=TuningJobLauncherFunction
 # event='{"input_model_uri": "s3://ol-rl-v0-0-0-assetsbucket-ngagfxwcupoc/training/offline-rl-2000-iter-230412-1210-012-6e2b2ed5/output/model.tar.gz"}'
 
 # ResourceId=ModelDeployerFunction
@@ -38,7 +38,7 @@ lambda_name=$(echo $stack_resources | jq -r ".StackResources[] | select(.Logical
 echo "Lambda Arn: $lambda_name"
 
 # ### Invoke and view logs
-# aws lambda invoke --function-name $lambda_name --payload "$event" ../data/simulation.json  --log-type Tail --query 'LogResult' --output text |  base64 -d
+aws lambda invoke --function-name $lambda_name --payload "$event" ../data/simulation.json  --log-type Tail --query 'LogResult' --output text |  base64 -d
 
 # # Invoke with event
 # lambda_response=$(aws lambda invoke --function-name $lambda_name --payload "$event" ../data/simulation.json )
@@ -46,10 +46,10 @@ echo "Lambda Arn: $lambda_name"
 # # echo $lambda_response | jq . 
 # cat ../data/simulation.json | jq .
 
-## Call the lambda x number of times
-for i in {1..200}
-do
-  # The command below outputs to /dev/stdin because the output is not meant to be recorded or visualized.
-  aws lambda invoke --function-name $lambda_name --payload "$event" /dev/stdin & #/dev/stdin, /dev/stdout and /dev/stderr
-  sleep 0.1
-done
+# ## Call the lambda x number of times
+# for i in {1..200}
+# do
+#   # The command below outputs to /dev/stdin because the output is not meant to be recorded or visualized.
+#   aws lambda invoke --function-name $lambda_name --payload "$event" /dev/stdin & #/dev/stdin, /dev/stdout and /dev/stderr
+#   sleep 0.1
+# done
