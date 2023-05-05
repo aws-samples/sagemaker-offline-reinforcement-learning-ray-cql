@@ -80,6 +80,8 @@ Resources:
     Type: AWS::KinesisFirehose::DeliveryStream
     Properties:
       DeliveryStreamName: !Sub "${AWS::StackName}-measurements"
+      DeliveryStreamEncryptionConfigurationInput: 
+        KeyType: AWS_OWNED_CMK
       ExtendedS3DestinationConfiguration:
         BucketARN: !Ref OutputBucketArn
         Prefix: !Ref FirehoseOutputS3Prefix
