@@ -175,7 +175,7 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**10):
     trajectory_batches = reader.read_all_files()
     policy = algorithm.get_policy()
 
-    sum_actor_loss = sum_critic_loss = sum_td_mse = sum_cql_loss = 0.
+    sum_actor_loss = sum_critic_loss = sum_td_mse = sum_cql_loss = highest_loss = 0.
     
     for batch_number, batch_list in enumerate(batch_generator(trajectory_batches, batch_size)):
         for i, batch in enumerate(batch_list):
@@ -186,6 +186,7 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**10):
             else:
                 batch_catcher.concat(batch)
         
+        
         with torch.no_grad():
             model = next(iter(policy.target_models))
             # print(f'Initial model tower stats: {model.tower_stats.get("td_error",None)}')
@@ -195,11 +196,23 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**10):
                 dist_class = algorithm.get_policy().dist_class,
                 train_batch = batch_catcher
                 )
+            batch_avg_cql_loss = np.average(model.tower_stats.get("cql_loss")).tolist()
+                
             sum_actor_loss += actor_loss.tolist()
             sum_critic_loss += np.average(model.tower_stats.get("critic_loss")).tolist()#critic_loss.tolist()
-            sum_cql_loss += np.average(model.tower_stats.get("cql_loss")).tolist()
+            sum_cql_loss += batch_avg_cql_loss
             # sum_td_mae += model.tower_stats.get("td_error").tolist()[0]
             sum_td_mse += np.average(model.tower_stats.get("critic_loss")).tolist()-np.average(model.tower_stats.get("cql_loss")).tolist()#td_error is mae
+            
+            if batch_avg_cql_loss > highest_loss:
+                highest_loss_batch = {
+                    "eval_highest_loss": batch_avg_cql_loss,
+                    "batch_number": batch_number,
+                    "data_batch": batch_catcher
+                }
+    
+    print(json.dumps(highest_loss_batch, default = str))
+            
     
     return {
         "evaluation_actor_loss":  sum_actor_loss / (batch_number+1),
@@ -237,7 +250,7 @@ if __name__ == "__main__":
     
     random.seed(SEED)
     
-    input_data_file_list = [os.path.join(TRAINING_DATA_DIR, file_name) for file_name in os.listdir(TRAINING_DATA_DIR)]
+    input_data_file_list = sorted([os.path.join(TRAINING_DATA_DIR, file_name) for file_name in os.listdir(TRAINING_DATA_DIR)])
     random.shuffle(input_data_file_list)
     last_validation_file_index = int(VALIDATION_DATA_FRAC*len(input_data_file_list))
     validation_data_file_list = input_data_file_list[:last_validation_file_index]
@@ -252,6 +265,7 @@ if __name__ == "__main__":
     class MyCallback(DefaultCallbacks):
         def __init__(self):
             self.batch_number = 0
+            # self.result_number = 0
             super().__init__()
             
         def on_algorithm_init(self, algorithm, **kwargs):
@@ -265,18 +279,19 @@ if __name__ == "__main__":
         def on_learn_on_batch(self, policy, train_batch, result, **kwargs):
             """Print the first couple batches when training"""
             self.batch_number += 1
-            if self.batch_number < 10:
+            if self.batch_number <= 2**9:
                 for tower in policy.model_gpu_towers:
-                    print('tower_stats')
+                    # print('tower_stats')
                     print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
                 print(json.dumps(train_batch,default = str).replace(r"\n", ""))
         
         def on_train_result(self, algorithm, result, **kwargs):
             "Calculate objective metric. Here it's a sum of actor, critic, and cql losses. Expose them and all results at the end of each training cycle."
-            # policy = algorithm.get_policy()
-            # for tower in policy.model_gpu_towers:
-            #     print('tower_stats')
-            #     print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
+            # self.result_number += 1
+            policy = algorithm.get_policy()
+            for tower in policy.model_gpu_towers:
+                print('tower_stats')
+                print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','cql_loss']}, default = str))
                 
             reloaded_results = json.loads(json.dumps(result, default = str)) # This is required so that jq can read np values w/o custom SerDe
             
