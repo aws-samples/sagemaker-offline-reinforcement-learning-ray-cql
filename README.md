@@ -13,7 +13,7 @@ You can compare CQL's performance estimate with historic system performance for 
 ## Example simulated training data and trained model episodes
 ![training-data](assets/cartpole_training_data.gif "episode from training data") ![trained-model-episode](assets/cartpole_trained_model.gif "episode using trained model")
 
-The training data was generated using 50% expert actions and 50% random actions.
+The historic data was generated using 50% expert actions and 50% random actions.
 
 
 ## Steps to use this project
