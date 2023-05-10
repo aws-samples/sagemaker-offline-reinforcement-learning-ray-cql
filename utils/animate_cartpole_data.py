@@ -34,7 +34,9 @@ arm_height = 0.2
 
 cartpole_base = Rectangle(xy_cart, base_width, base_height, color='cornflowerblue')  # Rectangle Patch
 cartpole_arm = Rectangle(tuple(map(operator.add, xy_cart, (base_width/2-arm_width/2, base_height/2))), arm_width, arm_height)  # Rectangle Patch
-goal_location = Circle(xy_cart, base_height/4, color='green')  # Rectangle Patch
+# goal_location = Circle(xy_cart, base_height/4, color='green')  # Rectangle Patch
+goal_location = Rectangle(xy_cart, base_width, base_height/4, color='green')  # Rectangle Patch
+
 
 ax.add_patch(cartpole_base)  # Add Patch to Plot
 ax.add_patch(cartpole_arm)  # Add Patch to Plot
@@ -60,7 +62,8 @@ with gif_writer.saving(fig, f, dpi = 60):
     cartpole_base.set(xy=xy_cart)
     cartpole_arm.set(xy=tuple(map(operator.add, xy_cart, (base_width/2-arm_width/2, base_height/2))))
     cartpole_arm.set(angle=-step['pole_angle']*180/np.pi)
-    goal_location.set(center = (step['goal_position'],0))
+    # goal_location.set(center = (step['goal_position'],0))
+    goal_location.set(xy=(step['goal_position'],xy_cart[1]))
     
     # Update Drawing:
     fig.canvas.draw()

@@ -1,13 +1,13 @@
 set -e -o pipefail
 source sam_functions.sh
 
-# ResourceId=RunPhysicsSimulationFunction
-# event='{"random_action_fraction": 0.0, "inference_endpoint_name": "230504-2327-004-2023-05-05-15-38-40-756"}'
-# event='{"random_action_fraction": 0.5}'
+ResourceId=RunPhysicsSimulationFunction
+# event='{"random_action_fraction": 0.0, "inference_endpoint_name": "230502-2359-008-2023-05-10-17-13-29-005"}'
+event='{"random_action_fraction": 0.5}'
 
 # ResourceId=S3UploadHandler
 
-ResourceId=TuningJobLauncherFunction
+# ResourceId=TuningJobLauncherFunction
 # event='{"input_model_uri": "s3://ol-rl-v0-0-0-assetsbucket-ngagfxwcupoc/training/offline-rl-2000-iter-230412-1210-012-6e2b2ed5/output/model.tar.gz"}'
 
 # ResourceId=ModelDeployerFunction
@@ -15,7 +15,7 @@ ResourceId=TuningJobLauncherFunction
 # {
 #   "DescribeTrainingJob": {
 #     "ModelArtifacts": {
-#       "S3ModelArtifacts": "s3://ol-rl-v0-0-0-assetsbucket-ngagfxwcupoc/training/offline-rl-1000-iter-230504-2327-004-d1e4af71/output/model.tar.gz"
+#       "S3ModelArtifacts": "s3://ol-rl-v0-0-0-assetsbucket-ngagfxwcupoc/training/offline-rl-1000-iter-230502-2359-008-e0b5e694/output/model.tar.gz"
 #     }
 #   }
 # }
