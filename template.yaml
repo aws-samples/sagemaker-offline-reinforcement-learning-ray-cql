@@ -336,7 +336,7 @@ Resources:
             Action:
               - iam:GetRole
               - iam:PassRole
-            Resource: !GetAtt SagemakerDeployRole.Arn
+            Resource: !GetAtt SagemakerTrainRole.Arn
       Timeout: 30
       MemorySize: 256
   

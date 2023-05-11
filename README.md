@@ -73,7 +73,8 @@ When you launch this function, the flow below executes:
 Now that the tuning job has finished, take a look at the metrics emitted during training. You can use CloudWatch, SageMaker Studio, or the `utils/investigate_training.py` file to view these metrics. Use the methodology from [this paper](https://arxiv.org/abs/2109.10813) to chose the model to deploy. Generally speaking, look for a training job with low `td_mse` and a high `q_mean` value. Look for this job in the sagemaker training jobs console page, and record the "S3 model artifact".
 
 Here's an example set of training plots:
-![Training Plots](assets/example_training_plots.html)
+<!--![Training Plots](assets/example_training_plots.html)-->
+{%include assets/example_training_plots.html%}
 
 Now call the lambda function `<CloudFormation stack name>-ModelDeployerFunction-<uniquie id>` with an event of this form:
 
