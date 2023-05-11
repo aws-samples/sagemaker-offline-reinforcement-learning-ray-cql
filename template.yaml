@@ -315,7 +315,7 @@ Resources:
           SAGEMAKER_TRAINING_BUCKET: !Ref AssetsBucket
           SAGEMAKER_TRAINING_ROLE: !Ref SagemakerTrainRole
           DATA_LOCATION: !Sub "s3://${DataBucket}/ray_offline_data/"
-          MAX_TUNING_JOBS: 4
+          MAX_TUNING_JOBS: 16
           TRAINING_ITERATIONS: 1000
           # TRAINING_IMAGE_URI: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${TrainingImageName}:latest"
       Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html

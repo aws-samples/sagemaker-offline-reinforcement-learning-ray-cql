@@ -161,8 +161,8 @@ def lambda_handler(event, context):
     if train_instance_type != 'local':
         offline_training_estimator_parameters.update({
             "checkpoint_s3_uri": s3_checkpoint_path,
-            "use_spot_instances":True,
-            "max_wait": 24 * 60 * 60 * 2, #Seconds
+            # "use_spot_instances":True,
+            # "max_wait": 24 * 60 * 60 * 2, #Seconds
         })
     
     print('Estimator Parameters')
