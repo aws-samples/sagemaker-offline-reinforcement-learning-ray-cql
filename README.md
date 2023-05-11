@@ -74,7 +74,13 @@ Now that the tuning job has finished, take a look at the metrics emitted during 
 
 Here's an example set of training plots:
 <!--![Training Plots](assets/example_training_plots.html)-->
-{%include assets/example_training_plots.html%}
+<!--{%include assets/example_training_plots.html%}-->
+<!--````{=html}-->
+<!--```{r, echo=FALSE, results='asis'}-->
+<!--xfun::file_string('assets/example_training_plots.html')-->
+<!--```-->
+<!--````-->
+<link href="assets/example_training_plots.html" rel="import" />
 
 Now call the lambda function `<CloudFormation stack name>-ModelDeployerFunction-<uniquie id>` with an event of this form:
 
