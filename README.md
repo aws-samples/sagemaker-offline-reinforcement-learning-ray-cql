@@ -96,6 +96,9 @@ This will run the simulation, using the new trained model as the action recommen
 
 You can view the performance of the new model by using Athena. Try the "Sample Athena Query" above to see performance metrics for each action source. One action source will be called `LQR_epsilon=0.5` and the other will be called `<sagemaker inference endpoint name>_epsilon=0.0`. The LQR action source was used to generate the training data. It uses a Linear Quadratic Regulator to find the optimal aciton, but actions randomly 50% of the time.
 
+## Usage Guidance
+The sample code; software libraries; command line tools; proofs of concept; templates; or other related technology (including any of the foregoing that are provided by our personnel) is provided to you as AWS Content under the AWS Customer Agreement, or the relevant written agreement between you and AWS (whichever applies). You should not use this AWS Content in your production accounts, or on production or other critical data. You are responsible for testing, securing, and optimizing the AWS Content, such as sample code, as appropriate for production grade use based on your specific quality control practices and standards. Deploying AWS Content may incur AWS charges for creating or using AWS chargeable resources, such as running Amazon EC2 instances or using Amazon S3 storage.
+
 ## Contributing
 Please create a new GitHub issue for any feature requests, bugs, or documentation improvements.
 

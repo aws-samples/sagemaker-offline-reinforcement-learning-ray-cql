@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: 
   -   AWS::Serverless-2016-10-31
 Description: >
-   This sample shows how to build a reinforcement learning model which optimizes a piece of equipment.
+  The workflow creates the resources to run an offline reinforcement learning workflow which can optimize a process using historic data.
   
 
 Resources:
@@ -43,10 +43,6 @@ Resources:
   SagemakerDeployRole:
     Type: AWS::IAM::Role
     Properties:
-      # ManagedPolicyArns:
-        # - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
-        # - arn:aws:iam::aws:policy/AmazonS3FullAccess
-        # - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -68,9 +64,6 @@ Resources:
   SagemakerTrainRole:
     Type: AWS::IAM::Role
     Properties:
-      # ManagedPolicyArns:
-        # - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
-        # - arn:aws:iam::aws:policy/AmazonS3FullAccess
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -91,9 +84,6 @@ Resources:
             Principal:
               Service:
                 - glue.amazonaws.com
-      # ManagedPolicyArns:
-      #   - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
-      #   - arn:aws:iam::aws:policy/AmazonAthenaFullAccess
       Policies: 
           - PolicyName: AthenaQueryPolicy
             PolicyDocument:

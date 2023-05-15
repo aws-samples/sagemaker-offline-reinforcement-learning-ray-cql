@@ -175,7 +175,7 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**6):
     trajectory_batches = reader.read_all_files()
     policy = algorithm.get_policy()
 
-    sum_actor_loss = sum_critic_loss = sum_td_mse = sum_cql_loss = highest_loss = 0.
+    sum_actor_loss = sum_critic_loss = sum_td_mse = sum_cql_loss = sum_mean_q = highest_loss = 0.
     
     for batch_number, batch_list in enumerate(batch_generator(trajectory_batches, batch_size)):
         for i, batch in enumerate(batch_list):
@@ -204,6 +204,7 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**6):
             sum_cql_loss += np.average(model.tower_stats.get("cql_loss")).tolist()
             # sum_td_mae += model.tower_stats.get("td_error").tolist()[0]
             sum_td_mse += np.average(model.tower_stats.get("critic_loss")).tolist()-np.average(model.tower_stats.get("cql_loss")).tolist()#td_error is mae
+            sum_mean_q += np.average(model.tower_stats.get("q_t")).tolist()
             
             if batch_avg_critic_loss > highest_loss:
                 highest_loss = batch_avg_critic_loss
@@ -214,15 +215,17 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**6):
                 }
                 
     
-    print(json.dumps(highest_loss_batch, default = str))
+    print(json.dumps(highest_loss_batch, default = str).replace(r"\n",""))
             
     
+    total_batches = batch_number+1
     return {
-        "evaluation_actor_loss":  sum_actor_loss / (batch_number+1),
-        "evaluation_critic_loss": sum_critic_loss / (batch_number+1),
-        "evaluation_cql_loss": sum_cql_loss / (batch_number+1),
-        "evaluation_td_mse": sum_td_mse/(batch_number+1),
-        "evaluation_batches": batch_number +1
+        "validation_actor_loss":  sum_actor_loss / total_batches,
+        "validation_critic_loss": sum_critic_loss / total_batches,
+        "validation_cql_loss": sum_cql_loss / total_batches,
+        "validation_td_mse": sum_td_mse / total_batches,
+        "validation_mean_q": sum_mean_q / total_batches,
+        "validation_batches": total_batches
     }
 
 #https://github.com/ray-project/ray/blob/master/rllib/examples/vizdoom_with_attention_net.py
@@ -287,25 +290,25 @@ if __name__ == "__main__":
         def on_learn_on_batch(self, policy, train_batch, result, **kwargs):
             """Print the first couple batches when training"""
             self.batch_number += 1
-            if self.batch_number <= 2**9:
-                for tower in policy.model_gpu_towers:
-                    # print('tower_stats')
-                    print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','critic_loss']}, default = str))
-                print(json.dumps(train_batch,default = str).replace(r"\n", ""))
+            # if self.batch_number <= 2**10:
+                # for tower in policy.model_gpu_towers:
+                #     # print('tower_stats')
+                #     print(json.dumps({key: tower.tower_stats[key] for key in ['q_t','td_error','critic_loss']}, default = str))
+                # print(json.dumps(train_batch,default = str).replace(r"\n", ""))
                 
-                
-                critic_loss = policy.model_gpu_towers[0].tower_stats['critic_loss'][0].detach().tolist()
-                
-                if critic_loss > self.highest_loss_value:
-                    print('New Highest loss: ', critic_loss, '. Previous highest loss: ', self.highest_loss_value)
-                    self.highest_loss_value = critic_loss
-                    self.highest_loss_info = json.dumps({
-                        "train_max_critic_loss": critic_loss,
-                        "train_batch_data": self.last_batch
-                    }, default = str)
-                    print(self.highest_loss_info)
-                
-                self.last_batch = train_batch
+            critic_loss = policy.model_gpu_towers[0].tower_stats['critic_loss'][0].detach().tolist()
+            
+            if critic_loss > self.highest_loss_value:
+                print('New Highest loss: ', critic_loss, '. Previous highest loss: ', self.highest_loss_value)
+                print(json.dumps(policy.model_gpu_towers[0].tower_stats, default = str).replace(r"\n",""))
+                self.highest_loss_value = critic_loss
+                self.highest_loss_info = json.dumps({
+                    "train_max_critic_loss": critic_loss,
+                    "train_batch_data": self.last_batch
+                }, default = str).replace(r"\n","")
+                print(self.highest_loss_info)
+            
+            self.last_batch = train_batch
                 
         
         def on_train_result(self, algorithm, result, **kwargs):
@@ -363,7 +366,7 @@ if __name__ == "__main__":
         .training(
             # clip_actions=False,
             # normalize_actions = True,
-            # twin_q=True,
+            twin_q=False,
             
             # q_model_config = {
             #     "fcnet_hiddens": [256]*NUMBER_LAYERS,
