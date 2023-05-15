@@ -30,7 +30,7 @@ The historic data was generated using 50% expert actions and 50% random actions.
 
 
 ### Sample Athena Query
-```
+``` sql
 WITH 
     sum_reward_by_episode AS (
         SELECT SUM(reward) as sum_reward, COUNT(1) as timesteps, m_temp.episode_id, m_temp.action_source
@@ -78,7 +78,7 @@ Now call the lambda function `<CloudFormation stack name>-ModelDeployerFunction-
 {
   "DescribeTrainingJob": {
     "ModelArtifacts": {
-      "S3ModelArtifacts": "s3://<CloudFormation stack name>-assetsbucket-ngagfxwcupoc/training/<training job name>/output/model.tar.gz"
+      "S3ModelArtifacts": "s3://<CloudFormation stack name>-assetsbucket-<unique id>/training/<training job name>/output/model.tar.gz"
     }
   }
 }
