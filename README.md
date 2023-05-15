@@ -59,8 +59,8 @@ The glue job named `${AWS::StackName}-JsonToRllibFormatJob` transoforms data fro
 Now the data is prepaired for the hyperparameter tuning job. You can launch the hyperparameter tuning job by invoking the lambda function `<CloudFormation stack name>-TuningJobLauncherFunction-<uniquie id>`.
 When you launch this function, the flow below executes:
 1. The lambda function creates an estimator to execute training runs.
-2. The lambda function invokes a hyperparameter tuning job with this estimator. Options for which hyperparameters to tune include learning rates for the actor and critic, and model capacity for actor / critic.
-3. In the entry point script, the following steps happen.
+2. The lambda function invokes a hyperparameter tuning job with this estimator. Options for which hyperparameters to tune include learning rates for the actor and critic, and model capacity for actor / critic. This creates 16 training jobs at a time, each with a unique set of hyper parameters.
+3. Each training job executes the following steps:
    1. A [Conservative Q Learning](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#cql) algorithm is built.
    2. Settings from the hyperparameter tuning job are applied to the algorithm.
    3. A stopper is configured to end the tuning job when the "Critic Loss" stops decreasing.
@@ -78,7 +78,7 @@ Now call the lambda function `<CloudFormation stack name>-ModelDeployerFunction-
 {
   "DescribeTrainingJob": {
     "ModelArtifacts": {
-      "S3ModelArtifacts": "s3://<CloudFormation stack name>-assetsbucket-ngagfxwcupoc/training/offline-rl-2000-iter-230414-1622-010-ef16bf2e/output/model.tar.gz"
+      "S3ModelArtifacts": "s3://<CloudFormation stack name>-assetsbucket-ngagfxwcupoc/training/<training job name>/output/model.tar.gz"
     }
   }
 }
