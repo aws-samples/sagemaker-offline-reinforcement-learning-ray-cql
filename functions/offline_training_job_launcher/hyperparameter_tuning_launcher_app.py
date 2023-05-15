@@ -1,6 +1,3 @@
-#https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deployment.html
-#https://sagemaker.readthedocs.io/en/stable/frameworks/tensorflow/deploying_tensorflow_serving.html
-
 import sys, os, json
 from pprint import pprint
 from datetime import datetime
@@ -49,9 +46,6 @@ def lambda_handler(event, context):
     
     print('event')
     print(json.dumps(event, indent = 4).replace("\n", "\r")) #This prints as one event in cloudwatch
-    
-    # print('environmental vars:')
-    # print(json.dumps(dict(os.environ), indent = 4).replace("\n", "\r"))
     
     # create a descriptive job name
     job_name_prefix = f"offline-rl-{os.environ['TRAINING_ITERATIONS']}-iter"

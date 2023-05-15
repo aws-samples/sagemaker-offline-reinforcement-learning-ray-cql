@@ -1,5 +1,3 @@
-#https://docs.aws.amazon.com/sagemaker/latest/dg/realtime-endpoints-deployment.html
-#https://sagemaker.readthedocs.io/en/stable/frameworks/tensorflow/deploying_tensorflow_serving.html
 import os
 import json
 
@@ -10,8 +8,6 @@ from datetime import datetime
 
 
 import sagemaker
-# from sagemaker.estimator import EstimatorBase
-# from sagemaker.model import FrameworkModel
 from sagemaker.pytorch.model import PyTorchModel
 from sagemaker.serializers import JSONSerializer
 from sagemaker.deserializers import JSONDeserializer
@@ -36,12 +32,8 @@ def lambda_handler(event, context):
     print('event')
     print(json.dumps(event, indent = 4).replace("\n", "\r")) #This prints as one event in cloudwatch
     
-    # print('environmental vars:')
-    # print(json.dumps(dict(os.environ), indent = 2).replace("\n", "\r"))
-    
     MODEL_DATA = event.get('DescribeTrainingJob').get('ModelArtifacts').get('S3ModelArtifacts')
     
-    # uniqueId = "".join(random.choices(string.ascii_lowercase, k=5))
     uniqueId ="-".join(MODEL_DATA.split("/")[-3].split("-")[-4:-1])
     
     MODEL_DEPLOY_ROLE = os.environ['SM_MODEL_DEPLOY_ROLE']
@@ -60,7 +52,6 @@ def lambda_handler(event, context):
         name = ENDPOINT_NAME
     )
     
-    # If model.bucket is blank, SM looks first in the default sagemaker bucket, which this function dosen't have access to.
     model.bucket = os.environ['MODEL_BUCKET']
     print(f'Deploying model from bucket {model.bucket}')
     
