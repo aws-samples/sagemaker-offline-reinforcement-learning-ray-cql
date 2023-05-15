@@ -11,6 +11,8 @@ You can compare CQL's performance estimate with historic system performance for 
 ![Diagram](assets/offline_rl_architecture.svg)
 
 ## Example simulated training data and trained model episodes
+The goal in this environment is to move the cart to the green box, while keeping the pole upright.
+
 ![training-data](assets/cartpole_training_data.gif "episode from training data") ![trained-model-episode](assets/cartpole_trained_model.gif "episode using trained model")
 
 The historic data was generated using 50% expert actions and 50% random actions.
@@ -45,7 +47,7 @@ ORDER BY avg_total_reward_per_episode DESC
 ```
 
 ## Detailed Walkthrough
-This project first generates data mock historic data by running a simulation on a lambda function. The simulated environment is cart-pole, but with force control instead of the usual binary velocity control. This environment was chosen because: 1/ The observations and actions are continuous values, 2/ A gif can communicate the performance of an actor on the system, 3/ The system has an unstable equlibrium point. Code for the simulated environment is stored in a lambda layer, who's source code is stored in `functions/simulation_layer/`. When the lambda function `RunPhysicsSimulationFunction` is called, every x time steps the timestep data is put into a Kinesis Firehose which stores it in S3. The template contains a glue table `GlueMeasurementsTable` which allows the data to be queried using Athena. To generate data for the offline rl workflow, call the lambda function a number of times. The script `./assets/generate_mock_data.sh` automates the process of calling the simulation lambda funciton 2000 times. After calling the `generate_mock_data.sh` file, wait 1 minute, and then you can query the simulation timestep data using Athena. 
+This project first generates mock historic data by running a simulation in a lambda function. The simulated environment is cart-pole, but with force control instead of the usual binary velocity control. This environment was chosen because: 1/ The observations and actions are continuous values, 2/ A gif can communicate the performance of an actor on the system, 3/ The system has an unstable equlibrium point. Code for the simulated environment is stored in a lambda layer (source code at `functions/simulation_layer/`). When the lambda function `RunPhysicsSimulationFunction` is called, every x time steps the time step data is put into a Kinesis Firehose which stores it in S3. The template contains a glue table `GlueMeasurementsTable` which lets Amazon Athena query the data. To generate data for the offline rl workflow, call the lambda function a number of times. The script `./assets/generate_mock_data.sh` automates the process of calling the simulation lambda funciton 2000 times. After calling the `generate_mock_data.sh` file, wait 1 minute, and then you can query the simulation timestep data using Athena. 
 
 Companies with data lakes may already have a Glue table with measurement data. If a company has historic process data outside of a data lake, check out [AWS Lake Formation](https://aws.amazon.com/lake-formation/) to move data into a data lake.
 
@@ -59,7 +61,7 @@ The glue job named `${AWS::StackName}-JsonToRllibFormatJob` transoforms data fro
 Now the data is prepaired for the hyperparameter tuning job. You can launch the hyperparameter tuning job by invoking the lambda function `<CloudFormation stack name>-TuningJobLauncherFunction-<uniquie id>`.
 When you launch this function, the flow below executes:
 1. The lambda function creates an estimator to execute training runs.
-2. The lambda function invokes a hyperparameter tuning job with this estimator. Options for which hyperparameters to tune include learning rates for the actor and critic, and model capacity for actor / critic. This creates 16 training jobs at a time, each with a unique set of hyper parameters.
+2. The lambda function invokes a hyperparameter tuning job with this estimator. Options for which hyperparameters to tune include learning rates for the actor and critic, and model capacity for actor / critic. This creates 16 training jobs (with concurrency of 4), each with a unique set of hyper parameters.
 3. Each training job executes the following steps:
    1. A [Conservative Q Learning](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#cql) algorithm is built.
    2. Settings from the hyperparameter tuning job are applied to the algorithm.
