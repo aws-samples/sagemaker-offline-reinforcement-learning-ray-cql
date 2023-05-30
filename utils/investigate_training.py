@@ -29,7 +29,8 @@ pd.options.plotting.backend = "plotly"
 sm_client = boto3.client('sagemaker')
 cw_client = boto3.client('cloudwatch')
 
-TUNING_JOB_NAME = sm_client.list_hyper_parameter_tuning_jobs(SortBy='CreationTime',MaxResults=1).get('HyperParameterTuningJobSummaries')[0].get('HyperParameterTuningJobName')
+# TUNING_JOB_NAME = sm_client.list_hyper_parameter_tuning_jobs(SortBy='CreationTime',MaxResults=1).get('HyperParameterTuningJobSummaries')[0].get('HyperParameterTuningJobName')
+TUNING_JOB_NAME = 'offline-rl-1000-iter-230511-1439'
 
 print(f'Plotting tuning job {TUNING_JOB_NAME}')
 
@@ -50,6 +51,13 @@ for job in training_job_names['TrainingJobSummaries'][:4]:
             },
         ],
     )
+    
+    if len(available_metrics['Metrics']) == 0:
+        print(f'No metrics for training job {job}')
+        continue
+    # print(f'Available Metrics: {available_metrics}')
+    
+    
     MetricDataQueries=[ {
             'Id': metric['MetricName'].lower(),
             'MetricStat': {
