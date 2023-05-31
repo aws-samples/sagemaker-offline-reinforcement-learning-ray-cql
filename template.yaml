@@ -3,6 +3,22 @@ Transform:
   -   AWS::Serverless-2016-10-31
 Description: >
   The workflow creates the resources to run an offline reinforcement learning workflow which can optimize a process using historic data.
+
+Parameters:
+  States:
+    Description: "The measurement value to use as the state of the sytem, seperated by commas"
+    Type: String
+    Default: "cart_position, cart_velocity, pole_angle, pole_angular_velocity, goal_position"
+  
+  Actions:
+    Description: "The measurement value to use as the actions on the sytem, seperated by commas"
+    Type: String
+    Default: "external_force"
+  
+  Reward:
+    Description: "A function of measurement values to use as the reward"
+    Type: String
+    Default: "reward"
   
 
 Resources:
@@ -210,14 +226,19 @@ Resources:
           SerdeInfo:
             SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
             Parameters:
-              paths: >
-                cart_position,
-                cart_velocity,
-                pole_angle,
-                pole_angular_velocity,
-                goal_position,
-                external_force,
-                reward,done,info,episode_id,device_id,epoch_time, time_step, action_source
+              paths: !Sub >
+                ${States},
+                ${Actions},
+                reward, done,info,episode_id,device_id,epoch_time, time_step, action_source
+                
+                
+              # cart_position,
+              # cart_velocity,
+              # pole_angle,
+              # pole_angular_velocity,
+              # goal_position,
+              # external_force,
+              # reward,done,info,episode_id,device_id,epoch_time, time_step, action_source
   
   ######################################
   ###### Compute Resources #############
@@ -304,8 +325,8 @@ Resources:
           TRAIN_INSTANCE_TYPE: "ml.m5.2xlarge"
           SAGEMAKER_TRAINING_BUCKET: !Ref AssetsBucket
           SAGEMAKER_TRAINING_ROLE: !Ref SagemakerTrainRole
-          DATA_LOCATION: !Sub "s3://${DataBucket}/ray_offline_data/"
-          MAX_TUNING_JOBS: 16
+          DATA_LOCATION: !Sub "s3://${DataBucket}/json_offline_data/"
+          MAX_TUNING_JOBS: 4
           TRAINING_ITERATIONS: 1000
           # TRAINING_IMAGE_URI: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${TrainingImageName}:latest"
       Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
@@ -392,3 +413,27 @@ Resources:
       Environment:
         Variables:
           BUCKET: !Ref AssetsBucket
+
+Outputs:
+  AthenaQueryToCreateJsonFormatedData:
+    Description: This query will allow you to transform the measurements table to a set of json objects which can be injested by the machine learning algorithm.
+    Value: !Sub |
+      UNLOAD (
+          SELECT * FROM (
+              SELECT 'SampleBatch' AS type, ARRAY[episode_id] as episode_id, ARRAY[row_number() OVER ()] as unroll_id,
+                  ARRAY[ARRAY[${States}]] as obs,
+                  ARRAY_AGG(ARRAY[${States}]) OVER (
+                      PARTITION BY episode_id
+                      ORDER BY episode_id, epoch_time ROWS BETWEEN 1 FOLLOWING AND 1 FOLLOWING
+                      ) as new_obs,
+                  ARRAY[ARRAY[${Actions}]] as actions,
+                  ARRAY[${Reward}] as rewards,
+                  ARRAY[false] as dones
+              FROM "${GlueDb}"."${GlueMeasurementsTable}" 
+              WHERE action_source = 'LQR_epsilon=0.5'
+              ORDER BY episode_id, epoch_time ASC
+              ) first_query
+          WHERE first_query.new_obs IS NOT NULL
+      ) 
+      TO 's3://${DataBucket}/json_offline_data/' 
+      WITH (format = 'JSON', compression = 'NONE')

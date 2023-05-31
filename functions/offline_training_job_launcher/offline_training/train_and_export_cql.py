@@ -185,18 +185,18 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**6):
                 batch_catcher = batch_catcher.concat(batch)
             # print(json.dumps(batch_catcher, default = str))
         
-        for col in ['rewards','obs','new_obs','actions','prev_rewards','terminateds']:
+        for col in ['rewards','obs','new_obs','actions','terminateds']: #,'prev_rewards'
             batch_catcher[col]=torch.tensor(batch_catcher[col])
                 
         with torch.no_grad():
             model = next(iter(policy.target_models))
             # print(f'Initial model tower stats: {model.tower_stats.get("td_error",None)}')
-            actor_loss, critic_loss, alpha_loss, alpha_prime_loss = cql_loss(
+            actor_loss, critic_loss, alpha_loss = cql_loss(
                 policy = policy, 
                 model = model, 
                 dist_class = algorithm.get_policy().dist_class,
                 train_batch = batch_catcher
-                )
+                )[0:3]
             batch_avg_critic_loss = np.average(model.tower_stats.get("critic_loss")).tolist()
                 
             sum_actor_loss += actor_loss.tolist()
