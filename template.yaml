@@ -19,7 +19,6 @@ Parameters:
     Description: "A function of measurement values to use as the reward"
     Type: String
     Default: "reward"
-  
 
 Resources:
   
@@ -177,7 +176,7 @@ Resources:
     Type: AWS::Glue::Database
     Properties:
       DatabaseInput:
-        Name: !Sub "${AWS::StackName}_historian_db"
+        Name: !Sub "${AWS::StackName}_glue_db"
       CatalogId: !Ref AWS::AccountId
   
   GlueMeasurementsTable:
