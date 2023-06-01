@@ -79,13 +79,13 @@ class ContinuousCartPoleEnv(gym.Env):
             or theta > self.theta_threshold_radians
         done = bool(done)
         
-        reward = (abs(x-x_goal)<0.1)
-        # reward = 0
-        # # reward += semi_circle_reward((x-x_goal),saturated_value = 0.5, reward_max = 10) #Give a reward of 10 if x=x_goal. No rewards if abs(x-x_goal)> 0.5
-        # reward += (abs(x-x_goal)<0.1)*10
-        # reward += semi_circle_reward(x_dot,     saturated_value = 0.5, reward_max = 1)
-        # reward += semi_circle_reward(theta,     saturated_value = 0.5, reward_max = 1)
-        # reward += semi_circle_reward(theta_dot, saturated_value = 0.5, reward_max = 1)
+        # reward = int(abs(x-x_goal)<0.1)
+        reward = 0
+        # reward += semi_circle_reward((x-x_goal),saturated_value = 0.5, reward_max = 10) #Give a reward of 10 if x=x_goal. No rewards if abs(x-x_goal)> 0.5
+        reward += (abs(x-x_goal)<0.1)*10
+        reward += semi_circle_reward(x_dot,     saturated_value = 0.5, reward_max = 1)
+        reward += semi_circle_reward(theta,     saturated_value = 0.5, reward_max = 1)
+        reward += semi_circle_reward(theta_dot, saturated_value = 0.5, reward_max = 1)
             
         if self.steps_beyond_done is None:
             # Pole just fell!
