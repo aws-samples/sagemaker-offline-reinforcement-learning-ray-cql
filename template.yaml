@@ -229,15 +229,6 @@ Resources:
                 ${States},
                 ${Actions},
                 reward, done,info,episode_id,device_id,epoch_time, time_step, action_source
-                
-                
-              # cart_position,
-              # cart_velocity,
-              # pole_angle,
-              # pole_angular_velocity,
-              # goal_position,
-              # external_force,
-              # reward,done,info,episode_id,device_id,epoch_time, time_step, action_source
   
   ######################################
   ###### Compute Resources #############

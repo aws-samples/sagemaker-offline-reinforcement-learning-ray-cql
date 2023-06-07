@@ -4,6 +4,7 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+from pathlib import Path
 import matplotlib.animation as animation
 import numpy as np
 import matplotlib.pyplot as plt
@@ -13,7 +14,7 @@ import json
 import os
 import tqdm
 
-simulation_file = open('./offline-rl-end-to-end/data/simulation.json')
+simulation_file = open(os.path.join(Path(__file__).parent.parent.absolute(),'assets','simulation.json'))
 simulation_dict = json.load(simulation_file)
 
 # x, x_dot, theta, theta_dot = self.state
