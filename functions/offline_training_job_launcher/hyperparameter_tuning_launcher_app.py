@@ -68,7 +68,7 @@ def lambda_handler(event, context):
     
     hyperparameter_ranges = {
         # "actor_learning_rate": ContinuousParameter(1e-5, 1e-3), #3e-4 is the default
-        "critic_learning_rate": ContinuousParameter(1e-5, 1e-3),
+        "critic_learning_rate": ContinuousParameter(1e-2, 1e-1),
         # "number_of_layers": IntegerParameter(1,8),
         # "unused_dummy_var": ContinuousParameter(1e-5, 1e-1), 
     }
@@ -130,8 +130,8 @@ def lambda_handler(event, context):
         "hyperparameters":{
             "algorithm": "CQL",
             "training_iterations": int(os.environ['TRAINING_ITERATIONS']),
-            "actor_learning_rate": 1e-4, #3e-4 is the default
-            "critic_learning_rate": 3e-4,
+            "actor_learning_rate": 3e-3, #3e-4 is the default
+            # "critic_learning_rate": 3e-4,
             "number_of_layers": 2,
             "seed": 1,
         },

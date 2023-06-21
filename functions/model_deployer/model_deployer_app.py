@@ -34,7 +34,7 @@ def lambda_handler(event, context):
     
     MODEL_DATA = event.get('DescribeTrainingJob').get('ModelArtifacts').get('S3ModelArtifacts')
     
-    uniqueId ="-".join(MODEL_DATA.split("/")[-3].split("-")[-4:-1])
+    uniqueId ="-".join(MODEL_DATA.split("/")[-3].split("-")[-4:-1]) + '-' + ''.join(random.choices(string.ascii_letters, k=5))
     
     MODEL_DEPLOY_ROLE = os.environ['SM_MODEL_DEPLOY_ROLE']
     ENDPOINT_NAME = f'{uniqueId}'
@@ -49,6 +49,8 @@ def lambda_handler(event, context):
         model_data=MODEL_DATA,
         framework_version="1.13.1",
         py_version="py39",
+        # framework_version="2.0.0",
+        # py_version="py310",
         name = ENDPOINT_NAME
     )
     
@@ -80,4 +82,3 @@ def lambda_handler(event, context):
     )
     
     return f'Deployed model with endpoint name {ENDPOINT_NAME}'
-    
