@@ -38,7 +38,7 @@ def lambda_handler(event, context):
   
   # logger.info('environmental vars:')
   # logger.info(json.dumps(dict(os.environ), indent = 4).replace("\n", "\r"))
-  EPSILON = event['random_action_fraction'] if 'random_action_fraction' in event else 0.1 #Fraction of the time to act randomly
+  EPSILON = event['random_action_fraction'] if 'random_action_fraction' in event else 0.5 #Fraction of the time to act randomly
   
   output_dict = {"steps":[]}
   
@@ -124,7 +124,7 @@ def lambda_handler(event, context):
     })
     
     # Add records to the firehose delivery stream when a certain number of steps have been recorded.
-    if i%FIREHOSE_UPLOAD_BATCH_SIZE == 0:
+    if i%FIREHOSE_UPLOAD_BATCH_SIZE == 0 and len(firehose_record_batch) > 0:
       firehose_put_response = firehose_client.put_record_batch(
         DeliveryStreamName=os.environ['DELIVERY_STREAM_NAME'],
         Records=firehose_record_batch
@@ -156,16 +156,17 @@ def lambda_handler(event, context):
       break
   
   ## Put the remaining records in the firehose stream.
-  firehose_client.put_record_batch(
-        DeliveryStreamName=os.environ['DELIVERY_STREAM_NAME'],
-        Records=firehose_record_batch
-      )
-  
+  if len(firehose_record_batch) > 0:
+    firehose_client.put_record_batch(
+          DeliveryStreamName=os.environ['DELIVERY_STREAM_NAME'],
+          Records=firehose_record_batch
+        )
   
   reward_sum = sum([step['reward'] for step in output_dict["steps"]])
   
   print(f'Successfully Completed Simulation. {len(output_dict["steps"])} total timesteps. {reward_sum:.2f} total reward. {reward_sum/len(output_dict["steps"]):.2f} average reward per timestep.')
   
-  return json.loads(json.dumps(output_dict,default = str)) # Make sure the output dict is seralizable
+  output_dict.update({"statusCode": 200})
+  return json.loads(json.dumps(output_dict,default = str))
   
   

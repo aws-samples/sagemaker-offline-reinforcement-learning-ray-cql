@@ -240,7 +240,17 @@ Resources:
       WorkGroupConfiguration: 
         ResultConfiguration: 
           OutputLocation: !Sub "s3://${DataBucket}/athena_results/"
-      
+  
+  GenerateDataStateMachine:
+    Type: AWS::Serverless::StateMachine # More info about State Machine Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-statemachine.html
+    Properties:
+      DefinitionUri: state_machine/data_generation_state_machine.yaml
+      DefinitionSubstitutions:
+        RunSimulationFunctionArn: !GetAtt RunPhysicsSimulationFunction.Arn
+      Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
+        - LambdaInvokePolicy:
+            FunctionName: !Ref RunPhysicsSimulationFunction
+  
   SimulationLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
