@@ -47,10 +47,10 @@ def lambda_handler(event, context):
         source_dir="src",
         role=MODEL_DEPLOY_ROLE,
         model_data=MODEL_DATA,
-        framework_version="1.13.1",
-        py_version="py39",
-        # framework_version="2.0.0",
-        # py_version="py310",
+        # framework_version="1.13.1",
+        # py_version="py39",
+        framework_version="2.0.0",
+        py_version="py310",
         name = ENDPOINT_NAME
     )
     

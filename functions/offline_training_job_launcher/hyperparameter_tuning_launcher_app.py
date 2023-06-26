@@ -68,7 +68,7 @@ def lambda_handler(event, context):
     
     hyperparameter_ranges = {
         # "actor_learning_rate": ContinuousParameter(1e-5, 1e-3), #3e-4 is the default
-        "critic_learning_rate": ContinuousParameter(1e-2, 1e-1),
+        "critic_learning_rate": ContinuousParameter(1e-3, 1e-1),
         # "number_of_layers": IntegerParameter(1,8),
         # "unused_dummy_var": ContinuousParameter(1e-5, 1e-1), 
     }

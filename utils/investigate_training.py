@@ -1,7 +1,7 @@
 # This file plots the last tuning job's cloudwatch metrics.
 
 ## Summary Columns
-COLUMNS_TO_PLOT = ['td_mse', 'evaluation_td_mse', 'mean_q', 'training_iteration']
+COLUMNS_TO_PLOT = ['td_mse', 'validation_td_mse', 'mean_q', 'training_iteration']
 LAST_VALUE_TABLE_COLUMNS = ['Trial #','td_mse','mean_q','training_iteration']
 
 ## Debug Columns
@@ -11,7 +11,6 @@ LAST_VALUE_TABLE_COLUMNS = ['Trial #','td_mse','mean_q','training_iteration']
 NUM_COLUMNS = 2
 
 import os
-import sagemaker
 import boto3
 from datetime import datetime
 import math
@@ -29,8 +28,7 @@ pd.options.plotting.backend = "plotly"
 sm_client = boto3.client('sagemaker')
 cw_client = boto3.client('cloudwatch')
 
-# TUNING_JOB_NAME = sm_client.list_hyper_parameter_tuning_jobs(SortBy='CreationTime',MaxResults=1).get('HyperParameterTuningJobSummaries')[0].get('HyperParameterTuningJobName')
-TUNING_JOB_NAME = 'offline-rl-1000-iter-230511-1439'
+TUNING_JOB_NAME = sm_client.list_hyper_parameter_tuning_jobs(SortBy='CreationTime',MaxResults=1).get('HyperParameterTuningJobSummaries')[0].get('HyperParameterTuningJobName')
 
 print(f'Plotting tuning job {TUNING_JOB_NAME}')
 
@@ -40,7 +38,7 @@ training_job_names = sm_client.list_training_jobs_for_hyper_parameter_tuning_job
 print(f'{len(training_job_names["TrainingJobSummaries"])} training jobs')
 metric_series = {}
 for job in training_job_names['TrainingJobSummaries'][:4]:
-    # print(job)
+    print(job['TrainingJobName'])
     available_metrics = cw_client.list_metrics(
         Namespace="/aws/sagemaker/TrainingJobs",
         # MetricName='string',

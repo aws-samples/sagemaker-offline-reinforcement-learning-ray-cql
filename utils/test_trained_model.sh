@@ -20,4 +20,4 @@ lambda_name=$(echo $stack_resources | jq -r ".StackResources[] | select(.Logical
 echo "Lambda Arn: $lambda_name"
 
 ### Invoke and view logs
-aws lambda invoke --function-name $lambda_name --payload "$event" ../data/simulation.json  --log-type Tail --query 'LogResult' --output text |  base64 -d
+aws lambda invoke --function-name $lambda_name --payload "$event" ../assets/simulation.json  --log-type Tail --query 'LogResult' --output text |  base64 -d

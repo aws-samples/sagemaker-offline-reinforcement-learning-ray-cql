@@ -1,17 +1,7 @@
 set -e -o pipefail
 source sam_functions.sh
 
-ResourceId=ModelDeployerFunction
-event=$(cat << EndOfMessage
-{
-  "DescribeTrainingJob": {
-    "ModelArtifacts": {
-      "S3ModelArtifacts": "s3:/my-bucket/training/my-training-job/output/model.tar.gz"
-    }
-  }
-}
-EndOfMessage
-)
+ResourceId=TuningJobLauncherFunction
 
 sam_config_dir=$(realpath '../samconfig.toml')
 
