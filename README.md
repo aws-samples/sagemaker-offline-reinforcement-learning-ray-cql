@@ -14,7 +14,7 @@ You can compare CQL's performance estimate with historic system performance for 
 ![Diagram](assets/offline_rl_architecture.svg)
 
 ## Example simulated training data and trained model episodes
-The goal in this environment is to move the cart to the green box, while keeping the pole upright. The historic data was generated using 50% expert actions and 50% random actions. The CQL algorithm learns which actions tend to produce higher rewards, and then recommends those actions. The animation on the left shows an example episode from the historic data. On the right we see an episode where the CQL model's action recommnedations were followed. The CQL model learned a control policy that moves the cart quickly to the goal position, while maintaining stability.
+To show how this process works, this repo contains a sample system to optimize using historic data. The sample system is a cart-pole environment which contains a pole balanced on top of a cart. The goal in this system is to move the cart to the green box, while keeping the pole upright. The historic data was generated using 50% expert actions and 50% random actions. The CQL algorithm learns which actions tend to produce higher rewards, and then recommends those actions. The animation on the left shows an example episode from the historic data. On the right we see an episode where the CQL model's action recommnedations were followed. The CQL model learned a control policy that moves the cart quickly to the goal position, while maintaining stability.
 
 ![training-data](assets/cartpole_training_data.gif "episode from historic data") ![trained-model-episode](assets/cartpole_trained_model.gif "episode using trained model")
 
