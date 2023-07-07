@@ -106,7 +106,7 @@ def lambda_handler(event, context):
         "pole_angle": obs[2],
         "pole_angular_velocity": obs[3],
         "goal_position": obs[4],
-        "external_force": action[0],
+        "external_force": action[0].item(),
         "reward": reward,
         "done": done,
         "info": info,
