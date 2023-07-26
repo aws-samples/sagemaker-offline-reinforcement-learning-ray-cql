@@ -51,6 +51,40 @@ This project first generates mock historic data by running a simulation in a lam
 
 Companies with data lakes may already have a Glue table with measurement data. If a company has historic process data outside of a data lake, check out [AWS Lake Formation](https://aws.amazon.com/lake-formation/) to move data into a data lake.
 
+Here is a sample query to transform the AWS Glue measurements table into JSON objects which the machine learning model can ingest.
+```sql
+UNLOAD (
+  SELECT 
+    * 
+  FROM 
+    (
+      SELECT 
+        'SampleBatch' AS type, 
+        ARRAY[episode_id] as episode_id, 
+        ARRAY[row_number() OVER () ] as unroll_id, 
+        ARRAY[ARRAY[cart_position, cart_velocity, pole_angle, pole_angular_velocity, goal_position]] as obs, 
+        ARRAY_AGG( ARRAY[cart_position, cart_velocity, pole_angle, pole_angular_velocity, goal_position] ) OVER (
+          PARTITION BY episode_id 
+          ORDER BY 
+            episode_id, 
+            epoch_time ROWS BETWEEN 1 FOLLOWING 
+            AND 1 FOLLOWING
+        ) as new_obs, 
+        ARRAY[ARRAY[external_force]] as actions, 
+        ARRAY[CAST( ABS(cart_position - goal_position) < 0.01 AS INT) ] as rewards, 
+        ARRAY[false] as dones 
+      FROM "<CloudFormation stack name>_historian_db"."measurements_table"
+      WHERE action_source = 'LQR_epsilon=0.5' // This is the training data action source
+      ORDER BY episode_id, epoch_time ASC
+    ) first_query 
+  WHERE 
+    first_query.new_obs IS NOT NULL
+) TO 's3://<my_bucket>/json_offline_data/' WITH (
+  format = 'JSON', compression = 'NONE'
+)
+
+```
+
 Now that historic measurement data is stored in S3, we can use an [Amazon Athena Unload Operation](https://docs.aws.amazon.com/athena/latest/ug/unload.html) to transform the data into a format approprate for traing a reinforcement learning model. In this sample the Ray rllib library is used. For the rllib library, you store timestep data as json objects. The object below shows a few example timesteps.
 ```json
 {"type":"SampleBatch","episode_id":["2023-04-11T21:01:17.786965"],"unroll_id":[911876],"obs":[[0.4212790641025132,1.033157927079702,0.0016930879401219566,-0.09199378805520442,0.5]],"new_obs":[[0.44194222264410726,1.1364661110881928,-1.4678782098213167E-4,-0.24645807434810413,0.5]],"actions":[[0.17652631]],"rewards":[11.982922835931035],"dones":[false]}
