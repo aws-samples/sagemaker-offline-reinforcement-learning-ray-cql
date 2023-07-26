@@ -48,6 +48,8 @@ def parse_args():
     parser.add_argument("--actor_learning_rate", type=float, default=3-2)
     parser.add_argument("--critic_learning_rate", type=float, default=3e-4)
     parser.add_argument("--number_of_layers", type=int, default=2)
+    parser.add_argument("--number_of_state_variables", type=int, default=1)
+    parser.add_argument("--number_of_actions", type=int, default=1)
     
     parser.add_argument("--seed", type=int, default=1)
     
@@ -249,8 +251,8 @@ if __name__ == "__main__":
     ACTOR_LEARNING_RATE = args.actor_learning_rate
     CRITIC_LEARNING_RATE = args.critic_learning_rate
     INITIAL_Q_VALUE = 0.
-    ACTION_SPACE_LENGTH = 1
-    STATE_SPACE_LENGTH = 5
+    ACTION_SPACE_LENGTH = args.number_of_actions
+    STATE_SPACE_LENGTH = args.number_of_state_variables
     NUMBER_LAYERS = args.number_of_layers
     VALIDATION_DATA_FRAC = 0.1
     SEED = args.seed

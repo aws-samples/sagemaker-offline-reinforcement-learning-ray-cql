@@ -5,6 +5,11 @@ Description: >
   The workflow creates the resources to run an offline reinforcement learning workflow which can optimize a process using historic data.
 
 Parameters:
+  CreateDummyDataPipeline:
+    Description: "Create a lambda function and kinesis data firehouse to produce sample training data"
+    Type: String
+    Default: "True"
+    
   States:
     Description: "The measurement value to use as the state of the sytem, seperated by commas"
     Type: String
@@ -20,6 +25,11 @@ Parameters:
     Type: String
     Default: "reward"
 
+Conditions:
+  CreateDummyDataPipelineCondition: !Equals
+    - !Ref CreateDummyDataPipeline
+    - "True"
+
 Resources:
   
   #################################
@@ -27,6 +37,7 @@ Resources:
   #################################
   MeasurementsFirehose:
     Type: AWS::Serverless::Application
+    Condition: CreateDummyDataPipelineCondition
     Properties:
       Location: nested_stacks/firehose_to_s3/template.yaml
       Parameters:
@@ -176,6 +187,7 @@ Resources:
   
   GlueDb:
     Type: AWS::Glue::Database
+    # Condition: CreateDummyDataPipelineCondition
     Properties:
       DatabaseInput:
         Name: !Sub "${AWS::StackName}_glue_db"
@@ -183,6 +195,7 @@ Resources:
   
   GlueMeasurementsTable:
     Type: AWS::Glue::Table
+    # Condition: CreateDummyDataPipelineCondition
     Properties:
       DatabaseName: !Ref GlueDb
       CatalogId: !Ref AWS::AccountId
@@ -245,6 +258,7 @@ Resources:
   
   GenerateDataStateMachine:
     Type: AWS::Serverless::StateMachine # More info about State Machine Resource: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-statemachine.html
+    Condition: CreateDummyDataPipelineCondition
     Properties:
       DefinitionUri: state_machine/data_generation_state_machine.yaml
       DefinitionSubstitutions:
@@ -255,6 +269,7 @@ Resources:
   
   SimulationLayer:
     Type: AWS::Serverless::LayerVersion
+    Condition: CreateDummyDataPipelineCondition
     Properties:
       LayerName: SimulationLayer
       Description: This layer has a custom gym environment to run continuous cartpole
@@ -265,6 +280,7 @@ Resources:
   
   RunPhysicsSimulationFunction:
     Type: AWS::Serverless::Function
+    Condition: CreateDummyDataPipelineCondition
     Properties:
       CodeUri: functions/run_physics_simulation/
       Handler: run_physics_simulation_app.lambda_handler
@@ -287,33 +303,6 @@ Resources:
             Action: sagemaker:InvokeEndpoint
             Resource: "*"
       Timeout: 120
-  
-  JsonToRllibFormatGlueJob:
-    Type: AWS::Glue::Job
-    Properties: 
-      Name: !Sub "${AWS::StackName}-JsonToRllibFormatJob"
-      Command:
-        Name: pythonshell # glueray
-        PythonVersion: 3.9
-        ScriptLocation: !Sub "s3://${AssetsBucket}/glue_scripts/glue_to_rllib_json.py"
-      Role: !GetAtt GlueRole.Arn
-      DefaultArguments:
-        --states: "cart_position cart_velocity pole_angle pole_angular_velocity goal_position"
-        --actions: external_force
-        --reward_col: reward
-        --glue_db: !Ref GlueDb
-        --glue_table: !Ref GlueMeasurementsTable
-        --output_bucket: !Ref DataBucket
-        --records_per_batch: 10000
-        --job-language: python
-        --additional-python-modules: "ray[rllib], gym, dm_tree, scikit-image, tabulate, awswrangler, tqdm"
-        --athena_workgroup: !Ref AthenaWorkGroup
-        library-set: analytics
-      GlueVersion: 1.0
-      # WorkerType: Z.2X
-      # NumberOfWorkers: 1
-      ExecutionProperty:
-        MaxConcurrentRuns: 3
       
   # HyperparameterTuningOfflineTrainingJobLauncherFunction:
   TuningJobLauncherFunction:
@@ -330,6 +319,8 @@ Resources:
           DATA_LOCATION: !Sub "s3://${DataBucket}/json_offline_data/"
           MAX_TUNING_JOBS: 4
           TRAINING_ITERATIONS: 1000
+          STATES: !Ref States
+          ACTIONS: !Ref Actions
           # TRAINING_IMAGE_URI: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${TrainingImageName}:latest"
       Policies: # Find out more about SAM policy templates: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html
         - Statement:
@@ -389,32 +380,32 @@ Resources:
   ################ Custom Resources ##################
   ####################################################
   
-  UploadS3CustomResource1:
-    Type: Custom::S3Uploader
-    Properties:
-      ServiceToken: !GetAtt S3UploadHandler.Arn
-      BucketName: !Ref AssetsBucket
+  # UploadS3CustomResource:
+  #   Type: Custom::S3Uploader
+  #   Properties:
+  #     ServiceToken: !GetAtt S3UploadHandler.Arn
+  #     BucketName: !Ref AssetsBucket
   
-  S3UploadHandler:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: functions/upload_to_s3/
-      Handler: app.lambda_handler
-      Runtime: python3.9
-      Timeout: 180
-      MemorySize: 2048
-      Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref AssetsBucket
-        # - Statement:
-        #   - Sid: AllowListBuckets # This is required for s3fs
-        #     Effect: Allow
-        #     Action:
-        #       - s3:ListAllMyBuckets
-        #     Resource: '*'
-      Environment:
-        Variables:
-          BUCKET: !Ref AssetsBucket
+  # S3UploadHandler:
+  #   Type: AWS::Serverless::Function
+  #   Properties:
+  #     CodeUri: functions/upload_to_s3/
+  #     Handler: app.lambda_handler
+  #     Runtime: python3.9
+  #     Timeout: 180
+  #     MemorySize: 2048
+  #     Policies:
+  #       - S3CrudPolicy:
+  #           BucketName: !Ref AssetsBucket
+  #       # - Statement:
+  #       #   - Sid: AllowListBuckets # This is required for s3fs
+  #       #     Effect: Allow
+  #       #     Action:
+  #       #       - s3:ListAllMyBuckets
+  #       #     Resource: '*'
+  #     Environment:
+  #       Variables:
+  #         BUCKET: !Ref AssetsBucket
 
 Outputs:
   AthenaQueryToCreateJsonFormatedData:
@@ -431,7 +422,10 @@ Outputs:
                   ARRAY[ARRAY[${Actions}]] as actions,
                   ARRAY[${Reward}] as rewards,
                   ARRAY[false] as dones
-              FROM "${GlueDb}"."${GlueMeasurementsTable}" 
+              FROM (
+                SELECT ${States}, ${Actions}, ${Reward}, epoch_time, episode_id, action_source
+                FROM "${GlueDb}"."${GlueMeasurementsTable}" 
+                )
               WHERE action_source = 'LQR_epsilon=0.5'
               ORDER BY episode_id, epoch_time ASC
               ) first_query

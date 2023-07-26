@@ -134,6 +134,8 @@ def lambda_handler(event, context):
             # "critic_learning_rate": 3e-4,
             "number_of_layers": 2,
             "seed": 1,
+            "number_of_state_variables": len(os.environ['STATES'].split(",")),
+            "number_of_actions": len(os.environ['ACTIONS'].split(","))
         },
         
         #Sagemaker Info
