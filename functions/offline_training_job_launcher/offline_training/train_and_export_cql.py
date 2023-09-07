@@ -232,7 +232,7 @@ def custom_eval_function(algorithm, eval_workers, batch_size = 2**6):
 
 #https://github.com/ray-project/ray/blob/master/rllib/examples/vizdoom_with_attention_net.py
 if __name__ == "__main__":
-    # #Put ray into the output model loc b/c I can't seem to get dependencies to work in the PyTorchModel function.
+    # #Put ray into the output model loc to simplify dependency management in the PyTorchModel function.
     # shutil.copytree(ray.__file__, os.path.join(os.environ['SM_MODEL_DIR'], "dependencies"))
     print('Hello from the training script')
     print(f'Ray version: {ray.__version__}')

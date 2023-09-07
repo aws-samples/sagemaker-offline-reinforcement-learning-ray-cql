@@ -187,7 +187,6 @@ Resources:
   
   GlueDb:
     Type: AWS::Glue::Database
-    # Condition: CreateDummyDataPipelineCondition
     Properties:
       DatabaseInput:
         Name: !Sub "${AWS::StackName}_glue_db"
@@ -195,7 +194,6 @@ Resources:
   
   GlueMeasurementsTable:
     Type: AWS::Glue::Table
-    # Condition: CreateDummyDataPipelineCondition
     Properties:
       DatabaseName: !Ref GlueDb
       CatalogId: !Ref AWS::AccountId
